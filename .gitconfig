@@ -1,0 +1,3 @@
+[merge "aggregate"]
+	name = aggregate both new sections, working branch after target branch
+	driver = aggregate.sh %O %A %B
