@@ -1,3 +1,27 @@
+# This is a better version of the 'union' merge strategy. There were two
+# issues with 'union':
+#   - When people do local merges (i.e. pull origin/master into their working
+#     branch), the union strategy keeps their new line as the first entry
+#     and puts master's new line second. This effectively changes the history
+#     of the file. However, in pull requests, it was being done correctly
+#     as the server considers master as the current branch.
+#   - If a nearby line is edited (i.e. a typo is fixed), then both the typo line
+#     and fixed line will be aggregated in the final version.
+# Instead of using the concepts of "current" and "other", we need to put new
+# line from the remote target first and the new line from the development
+# branch second.
+#
+# Diff what's on master with local.
+# Enters 'true' branch if master IS local.
+#    Append 'other' branch (%B) changes to 'ours' (%A). tmpfile wasn't needed.
+# Enters 'false' branch otherwise.
+#    Append 'ours' changes (%A) to tempfile then move it to %A.
+#    What happens if both branches start ahead of origin/master?
+#    Keep what was done to %A so far, but check if %B is also ahead of master. If
+#    so, put it after %A's changes. It doesn't matter which comes first.
+#
+# Note that the git driver assumes the final contents of %A is what it will
+# commit in the merge.
 [merge "aggregate"]
 	name = aggregate both new sections, working branch after target branch
-	driver = aggregate.sh %O %A %B
+	driver = 'tgt=master; Afile=appendable_file.txt; top="$(git rev-parse --show-toplevel)"; tgtfile=${top}/${Afile}; tmpfile=$(mktemp); git show origin/${tgt}:${Afile} > ${tmpfile}; git diff --exit-code --quiet origin/${tgt}:${Afile} -- ${tgtfile} && (comm -13 --nocheck-order %O %B >> %A) || (comm -13 --nocheck-order %O %A >> ${tmpfile}; cp ${tmpfile} %A; git diff --exit-code --quiet origin/${tgt}:${Afile} -- %B || (comm -13 --nocheck-order %O %B >> %A))'
